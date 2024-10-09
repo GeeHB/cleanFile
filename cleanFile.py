@@ -20,14 +20,14 @@
 #                                    --col | -c {col1, col2, ..}]
 #
 #                                       ou
-#                                   
+#
 #                                   [ --directory | -d {dossier}]
 #
 #                                       et
 #
 #                                   [--delim | -d {delimiteur de colonnes}]
 #
-#   Exemples     :   
+#   Exemples     :
 #                       Nettoyage d'un fichier ./cleanFile.py --src ./source.csv --col 0 7 9
 #
 #                       Nettoyage d'un dossier ./cleanFile.py -f ./taxation/1
@@ -44,7 +44,7 @@ DEF_ENCODING   = "Windows-1252"
 FILE_BASE_NAME = "clean-"       # Prefixe du fichier généré
 
 LOG_BASE = 26                   # Génération d'un num. anonyme (alpha en base 26)
-BASE_STRING = 'xxx'             # ... commençant par 
+BASE_STRING = 'xxx'             # ... commençant par
 
 DEF_COL_COUNT = 4               # Par défaut, le nombre de colonnes par ligne
 
@@ -87,7 +87,7 @@ class cleanFile(object):
     # Construction
     #
     def __init__(self, source : str, cols = None, delim = DEF_DELIM):
-        
+
         # Nom du fichier de sortie
         self.__genName(source)
 
@@ -96,7 +96,7 @@ class cleanFile(object):
 
         if self.valid():
             self.__loadDict()   # Chargement du dictionnaire (si il existe)
-        
+
             # Récupération de la liste des dcolonnes à anonymiser
             if cols is not None :
                 self.anonimyzedCols_ = cols
@@ -104,9 +104,9 @@ class cleanFile(object):
                 self.anonimyzedCols_ = []
 
             self.delim_ = delim
-            
+
             self.values_ = []   # ... et la matrice de données est vide
-            
+
             self.colID_ = 0     # Première case
             self.rowID_ = -1
             self.colCount_ = DEF_COL_COUNT
@@ -114,7 +114,7 @@ class cleanFile(object):
     #
     # Accès
     #
-    
+
     # Le nom est-il valide ?
     def valid(self):
         return self.valid_
@@ -124,7 +124,7 @@ class cleanFile(object):
         return self.colCount_
     def lines(self):
         return self.rowID_
-    
+
     # Ajout d'une ligne
     def addRow(self):
         cols = self.colCount_ if len(self.values_) == 0 else len(self.values_[0])
@@ -144,14 +144,14 @@ class cleanFile(object):
 
     # Ajout d'une valeur
     def set(self, value):
-        
+
         # Sommes-nous dans une colonne dont les valeurs doivent-être remplacées ?
         if self.__inAnonymizedCol():
             self.values_[self.rowID_][self.colID_] = self.__anonymize(value)
         else :
             # Non => copie de la valeur
             self.values_[self.rowID_][self.colID_] = value
-    
+
     # Sauvegarde du fichier
     #
     def save(self):
@@ -170,6 +170,22 @@ class cleanFile(object):
         except:
             return False
         #print(self.values_)
+
+    # Le fichier existe t'il ?
+    @staticmethod
+    def exists(fName, verbose = False):
+        try:
+            file = open(fName, 'r')
+            file.close()
+            return True
+        except FileNotFoundError :
+            if verbose:
+                print(f"Le fichier '{fName}' n'existe pas")
+            return False
+        except IOError:
+            if verbose:
+                print(f"Erreur lors de l'ouverture de '{fName}'")
+            return False
 
     # Génération du nom du fichier à partir du nom source
     #
@@ -190,18 +206,18 @@ class cleanFile(object):
     # Transformation d'un nombre en son equivalent chaine en base 26
     #
     def __2String(self, src) -> str:
-        
+
         if type(src) != "<type 'int'>" :
             source = int(src)
         else:
             source = src
-        
+
         #orig = source
         digits = []
         while source:
             digits.append(int(source % LOG_BASE) + ord('a'))
             source //= LOG_BASE
-        
+
         # Ajustement par la gauche
         left = BASE_STRING
         for _ in range(3 - len(digits)) :
@@ -213,7 +229,7 @@ class cleanFile(object):
 
         #print(f"{orig} : {left}")
         return left
-    
+
     # Valeur de remplacement -> anonymisation (ou pas)
     #
     def __anonymize(self, value):
@@ -223,37 +239,22 @@ class cleanFile(object):
                 return value
         except ValueError:
             return value
-          
+
         # Dans le dictionnaire ?
         if value in self.dict_:
             # oui => on retourne la valeur
             return self.dict_[value]
-        
+
         # Sinon on l'ajoute
         newValue = self.__2String(len(self.dict_))
         self.dict_[value] = newValue
 
         # et on la retourne
         return newValue
-    
-    # Le fichier existe t'il ?
-    def exists(fName, verbose = False):
-        try:
-            file = open(fName, 'r')
-            file.close()
-            return True
-        except FileNotFoundError :
-            if verbose:
-                print(f"Le fichier '{fName}' n'existe pas")
-            return False
-        except IOError:
-            if verbose:
-                print(f"Erreur lors de l'ouverture de '{fName}'")
-            return False
-    
+
     # Chargement du dictionnaire
     def __loadDict(self):
-        
+
         # Le distionnaire d'anonymisation est vide
         self.dict_ = {}
 
@@ -273,10 +274,10 @@ class cleanFile(object):
 
     # Sauvegarde du catalogue
     def __saveDict(self):
-        # Conversion en liste     
+        # Conversion en liste
         myList = self.dict_.items()
         myList = list(myList)
-        
+
         try:
             with open(DICT_FILE, mode='w', encoding = DEF_ENCODING) as dictFile:
                 outputWriter = csv.writer(dictFile, delimiter=self.delim_, quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -284,7 +285,7 @@ class cleanFile(object):
                     #print("ligne", row)
                     outputWriter.writerow(row)
         except:
-            return 
+            return
 
 # Analyse et anonymisation au vol d'un fichier
 #
@@ -292,7 +293,7 @@ def __cleanSingleFile(fName, delim, cols):
     # Le fichier source doit exister
     if not cleanFile.exists(fName, True):
         return False
-    
+
     # "Création" du fichier anonymisé
     cFile = cleanFile(fName, cols, delim)
 
@@ -303,7 +304,7 @@ def __cleanSingleFile(fName, delim, cols):
     print(f"Source : {fName}")
     print(f"Colonnes à analyser : {cols}")
     print(f"Séparateur de colonnes : \"{delim}\"")
-    
+
     # Transfert des valeurs des cellulles
     with open(fName, encoding=DEF_ENCODING) as csvFile:
         csvReader = csv.reader(csvFile, delimiter=delim)
@@ -313,7 +314,7 @@ def __cleanSingleFile(fName, delim, cols):
             for val in row:
                 cFile.set(val)
                 cFile.addColumn()   # Colonne suivante
-         
+
     # Terminé ...
     if cFile.save():
         print(f"Le fichier '{cFile.name()}' a été généré avec succès")
@@ -353,7 +354,7 @@ if '__main__' == __name__:
     # Lecture de la ligne de commandes
     #
     parser = argparse.ArgumentParser()
-    
+
     # Arguments mutuellement exclusifs
     source = parser.add_mutually_exclusive_group()
     source.add_argument(PARAM_FILE_S, PARAM_FILE, help = COMMENT_FILE, nargs=1)
@@ -361,7 +362,7 @@ if '__main__' == __name__:
 
     parser.add_argument(PARAM_COL_S, PARAM_COL, help = COMMENT_COL, nargs='*')
     parser.add_argument(PARAM_DELIM_S, PARAM_DELIM, help = COMMENT_DELIM, required = False, nargs=1)
-    
+
     args = parser.parse_args()
 
     # Vérification des paramètres
@@ -374,12 +375,12 @@ if '__main__' == __name__:
             x = int(s)
             if x not in cols:
                 cols.append(x)
-        
+
     if args.src is None:
         # C'est un dossier
         __cleanFolder(args.folder[0], delim, cols)
     else :
-        # C'est un fichier    
+        # C'est un fichier
         __cleanSingleFile(args.src[0], delim, cols)
 
 # EOF

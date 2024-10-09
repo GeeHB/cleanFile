@@ -12,7 +12,7 @@
 #
 #   Remarque    :   Nécessite Python 3
 #
-#   Version     :   0.2.2
+#   Version     :   0.2.3
 #
 #   Date        :   9 octobre 2024
 #
@@ -90,25 +90,34 @@ class cleanFile(object):
         
         # Nom du fichier de sortie
         self.__genName(source)
-        
-        # Récupération de la liste des dcolonnes à anonymiser
-        if cols is not None :
-            self.anonimyzedCols_ = cols
-        else:
-            self.anonimyzedCols_ = []
 
-        self.delim_ = delim
+        # Le fichier de sortie existe déja ?
+        self.valid_ = -1 == source.find(FILE_BASE_NAME) and not cleanFile.exists(self.outputName_)
+
+        if self.valid():
+            self.__loadDict()   # Chargement du dictionnaire (si il existe)
         
-        self.__loadDict()   # Chargement du dictionnaire (si il existe)
-        self.values_ = []   # ... et la matrice de données est vide
-        
-        self.colID_ = 0     # Première case
-        self.rowID_ = -1
-        self.colCount_ = DEF_COL_COUNT
+            # Récupération de la liste des dcolonnes à anonymiser
+            if cols is not None :
+                self.anonimyzedCols_ = cols
+            else:
+                self.anonimyzedCols_ = []
+
+            self.delim_ = delim
+            
+            self.values_ = []   # ... et la matrice de données est vide
+            
+            self.colID_ = 0     # Première case
+            self.rowID_ = -1
+            self.colCount_ = DEF_COL_COUNT
 
     #
     # Accès
     #
+    
+    # Le nom est-il valide ?
+    def valid(self):
+        return self.valid_
     def name(self):
         return self.outputName_
     def columns(self):
@@ -227,6 +236,21 @@ class cleanFile(object):
         # et on la retourne
         return newValue
     
+    # Le fichier existe t'il ?
+    def exists(fName, verbose = False):
+        try:
+            file = open(fName, 'r')
+            file.close()
+            return True
+        except FileNotFoundError :
+            if verbose:
+                print(f"Le fichier '{fName}' n'existe pas")
+            return False
+        except IOError:
+            if verbose:
+                print(f"Erreur lors de l'ouverture de '{fName}'")
+            return False
+    
     # Chargement du dictionnaire
     def __loadDict(self):
         
@@ -262,27 +286,24 @@ class cleanFile(object):
         except:
             return 
 
-# Analyse d'un fichier
+# Analyse et anonymisation au vol d'un fichier
 #
 def __cleanSingleFile(fName, delim, cols):
     # Le fichier source doit exister
-    try:
-        file = open(fName, 'r')
-        file.close()
-    except FileNotFoundError :
-        print(f"Le fichier {fName} n'existe pas")
-        exit(3)
-    except IOError:
-        print(f"Erreur lors de l'ouverture de {fName}")
-        exit(3)
+    if not cleanFile.exists(fName, True):
+        return False
+    
+    # "Création" du fichier anonymisé
+    cFile = cleanFile(fName, cols, delim)
+
+    if not cFile.valid():
+        print(f"Le fichier '{fName}' a déja été anonymisé. Aucun traitement")
+        return False
 
     print(f"Source : {fName}")
     print(f"Colonnes à analyser : {cols}")
     print(f"Séparateur de colonnes : \"{delim}\"")
     
-    # "Création" du fichier anonymisé
-    cFile = cleanFile(fName, cols, delim)
-
     # Transfert des valeurs des cellulles
     with open(fName, encoding=DEF_ENCODING) as csvFile:
         csvReader = csv.reader(csvFile, delimiter=delim)
@@ -297,8 +318,11 @@ def __cleanSingleFile(fName, delim, cols):
     if cFile.save():
         print(f"Le fichier '{cFile.name()}' a été généré avec succès")
         print(f"\t - {cFile.columns()} cols x {cFile.lines()} lignes")
+        return True
 
-# Analyse de tous les fichiers d'un dossier (sans recursivité)
+    return False
+
+# Analyse de tous les fichiers d'un dossier (sans recursivité pour l'instant ...)
 #
 def __cleanFolder(folderName, delim, baseCols):
     print(f"Analyse du dossier {folderName}")

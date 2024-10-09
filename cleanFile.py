@@ -12,9 +12,9 @@
 #
 #   Remarque    :   Nécessite Python 3
 #
-#   Version     :   0.1.2
+#   Version     :   0.2.1
 #
-#   Date        :   4 octobre 2024
+#   Date        :   9 octobre 2024
 #
 #   Appel       :   ./cleanFile.py   --src | -s {fichier source}
 #                                    --col | -c {col1, col2, ..}
@@ -51,6 +51,8 @@ PARAM_DELIM_S= "-d"
 COMMENT_DELIM= "Délimiteur de colonnes"
 DEF_DELIM    = ";"
 
+DICT_FILE = "./.dict.csv" # Tableau associatif
+
 # cleanFile : Fichier anonymisé
 #
 class cleanFile(object):
@@ -69,15 +71,14 @@ class cleanFile(object):
             self.anonimyzedCols_ = []
 
         self.delim_ = delim
-
-        # Le distionnaire d'anonymisation est vide
-        self.dict_ = {}
+        
+        self.__loadDict()   # Chargement du dictionnaire (si il existe)
         self.values_ = []   # ... et la matrice de données est vide
         
         self.colID_ = 0     # Première case
         self.rowID_ = -1
         self.colCount_ = DEF_COL_COUNT
-    
+
     #
     # Accès
     #
@@ -125,6 +126,9 @@ class cleanFile(object):
                 # Copie ligne à ligne
                 for row in self.values_:
                     outputWriter.writerow(row)
+
+            # Le "nouveau" fichier est généré, je peux conserver le dictionnaire
+            self.__saveDict()
 
             return True # Généré avec succès
         except:
@@ -195,6 +199,41 @@ class cleanFile(object):
 
         # et on la retourne
         return newValue
+    
+    # Chargement du dictionnaire
+    def __loadDict(self):
+        
+        # Le distionnaire d'anonymisation est vide
+        self.dict_ = {}
+
+        # Y a t'il un fichier d'une instance précédente ?
+        try:
+            with open(DICT_FILE, encoding=DEF_ENCODING) as dictFile:
+                csvReader = csv.reader(dictFile, delimiter=delim)
+                lineCount = 0
+                for row in csvReader:
+                    self.dict_[row[0]] = row[1] # ajout de l'entrée
+                    lineCount+=1
+
+            print(f"{lineCount} valeurs dans le dictionnaire")
+        except:
+            print("Erreur lors de la lecture du dictionnaire")
+            self.dict_ = {}
+
+    # Sauvegarde du catalogue
+    def __saveDict(self):
+        # Conversion en liste     
+        myList = self.dict_.items()
+        myList = list(myList)
+        
+        try:
+            with open(DICT_FILE, mode='w', encoding = DEF_ENCODING) as dictFile:
+                outputWriter = csv.writer(dictFile, delimiter=self.delim_, quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                for row in myList:
+                    #print("ligne", row)
+                    outputWriter.writerow(row)
+        except:
+            return 
 
 #
 # Point d'entrée du programme

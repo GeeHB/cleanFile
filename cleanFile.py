@@ -12,15 +12,25 @@
 #
 #   Remarque    :   Nécessite Python 3
 #
-#   Version     :   0.2.1
+#   Version     :   0.2.2
 #
 #   Date        :   9 octobre 2024
 #
-#   Appel       :   ./cleanFile.py   --src | -s {fichier source}
-#                                    --col | -c {col1, col2, ..}
+#   Appel       :   ./cleanFile.py   [--src | -s {fichier source}
+#                                    --col | -c {col1, col2, ..}]
+#
+#                                       ou
+#                                   
+#                                   [ --directory | -d {dossier}]
+#
+#                                       et
+#
 #                                   [--delim | -d {delimiteur de colonnes}]
 #
-#   Exemple     :   ./cleanFile.py --src ./source.csv --col 0 7 9
+#   Exemples     :   
+#                       Nettoyage d'un fichier ./cleanFile.py --src ./source.csv --col 0 7 9
+#
+#                       Nettoyage d'un dossier ./cleanFile.py -f ./taxation/1
 #
 
 import os, csv, argparse
@@ -42,6 +52,10 @@ PARAM_FILE   = "--src"          # Paramètres de la ligne de commandes
 PARAM_FILE_S = "-s"
 COMMENT_FILE = "Fichier source"
 
+PARAM_DIR    = "--folder"
+PARAM_DIR_S  = "-f"
+COMMENT_DIR  = "Dossier à analyser"
+
 PARAM_COL    = "--col"
 PARAM_COL_S  = "-c"
 COMMENT_COL  = "Colonnes à anonymiser"
@@ -52,6 +66,19 @@ COMMENT_DELIM= "Délimiteur de colonnes"
 DEF_DELIM    = ";"
 
 DICT_FILE = "./.dict.csv" # Tableau associatif
+
+# Type prédéfinis de fichiers
+#
+#   colonnes à anonymiser en fonction du nom du fichier
+#
+FILE_ENTRANT = "entrant"
+LIST_ENTRANT = [1,2,4]
+
+FILE_INTERNE = "interne"
+LIST_INTERNE = [0, 1, 2, 3]
+
+FILE_SORTANT = "sortant"
+LIST_SORTANT = [0]
 
 # cleanFile : Fichier anonymisé
 #
@@ -235,29 +262,10 @@ class cleanFile(object):
         except:
             return 
 
+# Analyse d'un fichier
 #
-# Point d'entrée du programme
-#
-if '__main__' == __name__:
-
-    # Lecture de la ligne de commandes
-    #
-    parser = argparse.ArgumentParser()
-    
-    parser.add_argument(PARAM_FILE_S, PARAM_FILE, help = COMMENT_FILE, required = True, nargs=1)
-    parser.add_argument(PARAM_COL_S, PARAM_COL, help = COMMENT_COL, required = True, nargs='*')
-    parser.add_argument(PARAM_DELIM_S, PARAM_DELIM, help = COMMENT_DELIM, required = False, nargs=1)
-    
-    args = parser.parse_args()
-
-    # Vérification des paramètres
-    if args.src is None or args.col is None:
-        exit(3) # Paramètre(s) invalide(s)
-
-    delim = DEF_DELIM if args.delim is None else args.delim[0]
-
+def __cleanSingleFile(fName, delim, cols):
     # Le fichier source doit exister
-    fName = args.src[0]
     try:
         file = open(fName, 'r')
         file.close()
@@ -267,13 +275,6 @@ if '__main__' == __name__:
     except IOError:
         print(f"Erreur lors de l'ouverture de {fName}")
         exit(3)
-
-    # Colonnes (valeurs uniques)
-    cols = []
-    for s in args.col:
-        x = int(s)
-        if x not in cols:
-            cols.append(x)
 
     print(f"Source : {fName}")
     print(f"Colonnes à analyser : {cols}")
@@ -296,5 +297,65 @@ if '__main__' == __name__:
     if cFile.save():
         print(f"Le fichier '{cFile.name()}' a été généré avec succès")
         print(f"\t - {cFile.columns()} cols x {cFile.lines()} lignes")
+
+# Analyse de tous les fichiers d'un dossier (sans recursivité)
+#
+def __cleanFolder(folderName, delim, baseCols):
+    print(f"Analyse du dossier {folderName}")
+    for fileName in os.listdir(folderName):
+        if not os.path.isdir(fileName): # c'est un fichier
+            fullName = os.path.join(folderName, fileName) # nom complet
+
+            # Choix des colonnes
+            if -1 != fileName.find(FILE_ENTRANT) :
+                cols = LIST_ENTRANT
+            else :
+                if -1 != fileName.find(FILE_SORTANT):
+                    cols = LIST_SORTANT
+                else:
+                    if -1 != fileName.find(FILE_INTERNE):
+                        cols = LIST_INTERNE
+                    else:
+                        cols = baseCols
+
+            print(f"Colonnes : {cols}" )
+            __cleanSingleFile(fullName, delim, cols)
+
+#
+# Point d'entrée du programme
+#
+if '__main__' == __name__:
+
+    # Lecture de la ligne de commandes
+    #
+    parser = argparse.ArgumentParser()
+    
+    # Arguments mutuellement exclusifs
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument(PARAM_FILE_S, PARAM_FILE, help = COMMENT_FILE, nargs=1)
+    source.add_argument(PARAM_DIR_S, PARAM_DIR, help = COMMENT_DIR, nargs=1)
+
+    parser.add_argument(PARAM_COL_S, PARAM_COL, help = COMMENT_COL, nargs='*')
+    parser.add_argument(PARAM_DELIM_S, PARAM_DELIM, help = COMMENT_DELIM, required = False, nargs=1)
+    
+    args = parser.parse_args()
+
+    # Vérification des paramètres
+    delim = DEF_DELIM if args.delim is None else args.delim[0]
+
+    # On récupère les colonnes (valeurs uniques)
+    cols = []
+    if args.col is not None:
+        for s in args.col:
+            x = int(s)
+            if x not in cols:
+                cols.append(x)
+        
+    if args.src is None:
+        # C'est un dossier
+        __cleanFolder(args.folder[0], delim, cols)
+    else :
+        # C'est un fichier    
+        __cleanSingleFile(args.src[0], delim, cols)
 
 # EOF

@@ -12,9 +12,9 @@
 #
 #   Remarque    :   Nécessite Python 3
 #
-#   Version     :   0.2.3
+#   Version     :   0.3.1
 #
-#   Date        :   9 octobre 2024
+#   Date        :   10 octobre 2024
 #
 #   Appel       :   ./cleanFile.py   [--src | -s {fichier source}
 #                                    --col | -c {col1, col2, ..}]
@@ -34,6 +34,7 @@
 #
 
 import os, csv, argparse
+from dict import dict
 
 #
 # Constantes
@@ -86,8 +87,11 @@ class cleanFile(object):
 
     # Construction
     #
-    def __init__(self, source : str, cols = None, delim = DEF_DELIM):
+    def __init__(self, dict, source : str, cols = None, delim = DEF_DELIM):
 
+        # Initialisations
+        self.dict_ = dict
+        
         # Nom du fichier de sortie
         self.__genName(source)
 
@@ -95,8 +99,7 @@ class cleanFile(object):
         self.valid_ = -1 == source.find(FILE_BASE_NAME) and not cleanFile.exists(self.outputName_)
 
         if self.valid():
-            self.__loadDict()   # Chargement du dictionnaire (si il existe)
-
+            
             # Récupération de la liste des dcolonnes à anonymiser
             if cols is not None :
                 self.anonimyzedCols_ = cols
@@ -162,9 +165,6 @@ class cleanFile(object):
                 # Copie ligne à ligne
                 for row in self.values_:
                     outputWriter.writerow(row)
-
-            # Le "nouveau" fichier est généré, je peux conserver le dictionnaire
-            self.__saveDict()
 
             return True # Généré avec succès
         except:
@@ -241,61 +241,26 @@ class cleanFile(object):
             return value
 
         # Dans le dictionnaire ?
-        if value in self.dict_:
+        if value in self.dict_.values_:
             # oui => on retourne la valeur
-            return self.dict_[value]
+            return self.dict_.values_[value]
 
         # Sinon on l'ajoute
-        newValue = self.__2String(len(self.dict_))
-        self.dict_[value] = newValue
+        newValue = self.__2String(self.dict_.len())
+        self.dict_.values_[value] = newValue
 
         # et on la retourne
         return newValue
 
-    # Chargement du dictionnaire
-    def __loadDict(self):
-
-        # Le distionnaire d'anonymisation est vide
-        self.dict_ = {}
-
-        # Y a t'il un fichier d'une instance précédente ?
-        try:
-            with open(DICT_FILE, encoding=DEF_ENCODING) as dictFile:
-                csvReader = csv.reader(dictFile, delimiter=delim)
-                lineCount = 0
-                for row in csvReader:
-                    self.dict_[row[0]] = row[1] # ajout de l'entrée
-                    lineCount+=1
-
-            print(f"{lineCount} valeurs dans le dictionnaire")
-        except:
-            print("Erreur lors de la lecture du dictionnaire")
-            self.dict_ = {}
-
-    # Sauvegarde du catalogue
-    def __saveDict(self):
-        # Conversion en liste
-        myList = self.dict_.items()
-        myList = list(myList)
-
-        try:
-            with open(DICT_FILE, mode='w', encoding = DEF_ENCODING) as dictFile:
-                outputWriter = csv.writer(dictFile, delimiter=self.delim_, quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                for row in myList:
-                    #print("ligne", row)
-                    outputWriter.writerow(row)
-        except:
-            return
-
 # Analyse et anonymisation au vol d'un fichier
 #
-def __cleanSingleFile(fName, delim, cols):
+def __cleanSingleFile(myDict, fName, delim, cols):
     # Le fichier source doit exister
     if not cleanFile.exists(fName, True):
         return False
 
     # "Création" du fichier anonymisé
-    cFile = cleanFile(fName, cols, delim)
+    cFile = cleanFile(myDict, fName, cols, delim)
 
     if not cFile.valid():
         print(f"Le fichier '{fName}' a déja été anonymisé. Aucun traitement")
@@ -325,7 +290,7 @@ def __cleanSingleFile(fName, delim, cols):
 
 # Analyse de tous les fichiers d'un dossier (sans recursivité pour l'instant ...)
 #
-def __cleanFolder(folderName, delim, baseCols):
+def __cleanFolder(myDict, folderName, delim, baseCols):
     print(f"Analyse du dossier {folderName}")
     for fileName in os.listdir(folderName):
         if not os.path.isdir(fileName): # c'est un fichier
@@ -344,7 +309,7 @@ def __cleanFolder(folderName, delim, baseCols):
                         cols = baseCols
 
             print(f"Colonnes : {cols}" )
-            __cleanSingleFile(fullName, delim, cols)
+            __cleanSingleFile(myDict, fullName, delim, cols)
 
 #
 # Point d'entrée du programme
@@ -376,11 +341,16 @@ if '__main__' == __name__:
             if x not in cols:
                 cols.append(x)
 
+    myDict = dict(DICT_FILE)
+
     if args.src is None:
         # C'est un dossier
-        __cleanFolder(args.folder[0], delim, cols)
+        __cleanFolder(myDict, args.folder[0], delim, cols)
     else :
         # C'est un fichier
-        __cleanSingleFile(args.src[0], delim, cols)
+        __cleanSingleFile(myDict, args.src[0], delim, cols)
+
+    # Enregistrement du dictionnaire
+    myDict.save()
 
 # EOF

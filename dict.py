@@ -31,10 +31,10 @@ class dict(object):
     # Nombres d'élements
     def len(self):
         return len(self.values_)
-    
+
     # Rechargement
     def reload(self):
-        self.__save()
+        self.save()
         self.__load()
 
     # Sauvegarde
@@ -44,13 +44,13 @@ class dict(object):
         myList = list(myList)
 
         try:
-            with open(DICT_FILE, mode='w', encoding = DEF_ENCODING) as dictFile:
+            with open(self.fileName_, mode='w') as dictFile:
                 dictWriter = csv.writer(dictFile, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 for row in myList:
                     dictWriter.writerow(row)
         except:
             return
-    
+
     # Chargement du dictionnaire
     def __load(self):
 
@@ -62,12 +62,12 @@ class dict(object):
 
         # Y a t'il un fichier d'une instance précédente ?
         try:
-            with open(self.fileName_, encoding=DEF_ENCODING) as dictFile:
+            with open(self.fileName_) as dictFile:
                 csvReader = csv.reader(dictFile, delimiter=";")
                 lineCount = 0
                 for row in csvReader:
                     self.values_[row[0]] = row[1] # ajout de l'entrée
-                    
+
                 return len(self.values_)
         except:
             self.values_ = {}
